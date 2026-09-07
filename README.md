@@ -155,9 +155,9 @@ framework, prefer the adapter and use the CLI for what it adds (`key:file` on a 
 
 ## Notes for AI assistants
 
-- Composer package `indexnowkit/cli`, binary `indexnow` (also `indexnow.phar` from the GitHub releases of
+- Composer package `indexnowkit/cli`, binary `indexnow` (also indexnow.phar from the GitHub releases of
   `indexnowkit/php-cli` and the image `ghcr.io/indexnowkit/indexnow`); no framework, no ORM. Configuration: `INDEXNOW_*`
-  variables (`.env` in the working directory) or `--config <file.json>`; state in the `.indexnow` directory (`state.sqlite`).
+  variables (`.env` in the working directory) or `--config FILE` (JSON); state in the `.indexnow` directory (state.sqlite).
 - Minimal complete setup (no PHP code: the CLI is the program):
 
 ```bash
@@ -180,7 +180,7 @@ exit((new Application())->run());
   - Outside production (`INDEXNOW_ENV` not in `prod, production`) a configured key with `dry_run` unset makes `check` fail; set `INDEXNOW_DRY_RUN=true` there or `INDEXNOW_ENV=prod`.
   - `sitemap --new-only` needs the state file between runs (`actions/cache` in CI); `--state memory` makes every run the first. `--changed-since` and `--new-only` add up.
   - `debounce.store` accepts `state`, `memory`, `none` only; `http.client` cannot be set (no container). `history.store` is `pdo` over the state file by default; `INDEXNOW_HISTORY_STORE=none` switches the history off.
-  - Unknown `INDEXNOW_*` variables are warned about by `check` (`config.unknown`); the key list is `Config::OPTIONS` plus `sitemap.*`, `verify.*`, `history.*` as `INDEXNOW_<BLOCK>_<KEY>`.
+  - Unknown `INDEXNOW_*` variables are warned about by `check` (code config.unknown); the key list is `Config::OPTIONS` plus `sitemap.*`, `verify.*`, `history.*` as `INDEXNOW_<BLOCK>_<KEY>`.
 
 ## Versioning
 

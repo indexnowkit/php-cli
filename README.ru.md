@@ -121,9 +121,9 @@ GitHub Action `indexnowkit/indexnow-action` запускает `check`, зате
 
 ## Заметки для AI-ассистентов
 
-- Composer-пакет `indexnowkit/cli`, бинарник `indexnow` (также `indexnow.phar` из релизов `indexnowkit/php-cli` и образ
+- Composer-пакет `indexnowkit/cli`, бинарник `indexnow` (также indexnow.phar из релизов `indexnowkit/php-cli` и образ
   `ghcr.io/indexnowkit/indexnow`); без фреймворка и ORM. Конфигурация: переменные `INDEXNOW_*` (`.env` в рабочем
-  каталоге) или `--config <file.json>`; состояние в каталог `.indexnow` (`state.sqlite`).
+  каталоге) или `--config FILE` (JSON); состояние в каталог `.indexnow` (state.sqlite).
 - Минимальная настройка (PHP-кода нет: программа — сам CLI):
 
 ```bash
@@ -146,7 +146,7 @@ exit((new Application())->run());
   - Вне production (`INDEXNOW_ENV` не `prod`/`production`) ключ при незаданном `dry_run` роняет `check`: `INDEXNOW_DRY_RUN=true` там или `INDEXNOW_ENV=prod`.
   - `sitemap --new-only` требует файл состояния между прогонами (`actions/cache` в CI); `--state memory` делает каждый прогон первым. `--changed-since` и `--new-only` складываются.
   - `debounce.store` — только `state`, `memory`, `none`; `http.client` задать нельзя. `history.store` по умолчанию `pdo` над файлом состояния; `INDEXNOW_HISTORY_STORE=none` выключает историю.
-  - Неизвестные `INDEXNOW_*` — предупреждение `check` (`config.unknown`); список ключей — `Config::OPTIONS` плюс `sitemap.*`, `verify.*`, `history.*` как `INDEXNOW_<BLOCK>_<KEY>`.
+  - Неизвестные `INDEXNOW_*` — предупреждение `check` (code config.unknown); список ключей — `Config::OPTIONS` плюс `sitemap.*`, `verify.*`, `history.*` как `INDEXNOW_<BLOCK>_<KEY>`.
 
 ## Версионирование
 

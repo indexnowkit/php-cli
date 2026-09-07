@@ -78,7 +78,7 @@ final class CheckAndConfigCommandsTest extends TestCase
     #[TestDox('check: a state file that cannot be written is a warning line, a memory state says so; --state memory keeps nothing')]
     public function testStateLines(): void
     {
-        $harness = new Harness();
+        $harness = new Harness(['INDEXNOW_DEBOUNCE_PER_URL' => '600']);
         self::assertSame(ExitCode::SUCCESS, $harness->run(['command' => 'check', '--state' => 'memory']));
         self::assertStringContainsString('state: memory (nothing persists between runs)', $harness->display());
         self::assertFileDoesNotExist($harness->statePath());
@@ -88,6 +88,7 @@ final class CheckAndConfigCommandsTest extends TestCase
             self::assertSame(ExitCode::FAILURE, $harness->run(['command' => 'check', '--state' => $harness->dir . '/ro/s.sqlite']), 'the debounce store that cannot be written is an error');
             self::assertStringContainsString('! state: ' . $harness->dir . '/ro/s.sqlite (not created yet, the directory is not writable)', $harness->display());
             self::assertStringContainsString('debounce: store "state" is not usable', $harness->display());
+            self::assertStringContainsString('history: state file ' . $harness->dir . '/ro/s.sqlite', $harness->display());
             chmod($harness->dir . '/ro', 0o700);
         }
     }

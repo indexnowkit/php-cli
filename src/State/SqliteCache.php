@@ -48,8 +48,8 @@ final class SqliteCache implements CacheInterface
     }
 
     /**
-     * @param string                $key
-     * @param int|DateInterval|null $ttl
+     * @param string $key
+     * @param mixed  $ttl int|DateInterval|null (the docblock of psr/simple-cache 1.0 cannot be narrowed here)
      */
     public function set($key, $value, $ttl = null): bool
     {
@@ -72,7 +72,7 @@ final class SqliteCache implements CacheInterface
     }
 
     /**
-     * @param iterable<string> $keys
+     * @param iterable<mixed> $keys
      *
      * @return iterable<string, mixed>
      */
@@ -80,7 +80,8 @@ final class SqliteCache implements CacheInterface
     {
         $out = [];
         foreach ($keys as $key) {
-            $out[self::key($key)] = $this->get($key, $default);
+            $key = self::key($key);
+            $out[$key] = $this->get($key, $default);
         }
 
         return $out;
@@ -88,7 +89,7 @@ final class SqliteCache implements CacheInterface
 
     /**
      * @param iterable<mixed, mixed> $values
-     * @param int|DateInterval|null  $ttl
+     * @param mixed                  $ttl int|DateInterval|null
      */
     public function setMultiple($values, $ttl = null): bool
     {
@@ -113,7 +114,7 @@ final class SqliteCache implements CacheInterface
     }
 
     /**
-     * @param iterable<string> $keys
+     * @param iterable<mixed> $keys
      */
     public function deleteMultiple($keys): bool
     {
@@ -153,15 +154,13 @@ final class SqliteCache implements CacheInterface
         return $this->clock->now()->getTimestamp();
     }
 
-    /**
-     * @param int|DateInterval|null $ttl
-     */
     private function expiresAt(mixed $ttl): ?int
     {
         return match (true) {
             $ttl === null => null,
             $ttl instanceof DateInterval => $this->clock->now()->add($ttl)->getTimestamp(),
-            default => $this->now() + $ttl,
+            \is_int($ttl) => $this->now() + $ttl,
+            default => throw new InvalidCacheKeyException(\sprintf('A TTL must be an int, a DateInterval or null, got %s.', get_debug_type($ttl))),
         };
     }
 }

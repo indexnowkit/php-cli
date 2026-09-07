@@ -8,9 +8,11 @@ use IndexNowKit\Adapter\Services;
 use IndexNowKit\Adapter\ServicesBuilder;
 use IndexNowKit\Adapter\SubmitterFactoryInterface;
 use IndexNowKit\Check\CheckInterface;
+use IndexNowKit\Check\CheckLevel;
 use IndexNowKit\Check\DebounceStoreCheck;
 use IndexNowKit\Check\SampleGateCheck;
 use IndexNowKit\Check\SampleOptions;
+use IndexNowKit\Check\StaticCheck;
 use IndexNowKit\Cli\Check\StateCheck;
 use IndexNowKit\Cli\Check\UnknownConfigCheck;
 use IndexNowKit\Cli\Config\EnvConfigSource;
@@ -22,6 +24,7 @@ use IndexNowKit\Debounce\DebounceStoreFactory;
 use IndexNowKit\Debounce\DebounceStoreInterface;
 use IndexNowKit\Exception\ConfigurationException;
 use IndexNowKit\History\Adapter\HistoryServices;
+use IndexNowKit\History\Check\HistoryCheck;
 use IndexNowKit\History\HistoryConfig;
 use IndexNowKit\History\Pdo\PdoSubmissionStore;
 use IndexNowKit\Http\LazyTransport;
@@ -172,7 +175,8 @@ final class Wiring
             ->checks(fn(Services $s): iterable => $this->checks($s));
         if (DebounceStoreFactory::isShared($config->debounceStore ?? State::STORE_ID)) {
             // the 403 counters and the robots cache of verify share the cache of the state file, as a framework's shared cache
-            $builder->failureCache(static fn(): CacheInterface => $state->cache());
+            // a state that cannot be written keeps the counters in the process; `check` says so in its state line
+            $builder->failureCache(static fn(): ?CacheInterface => $state->isReadOnly() ? null : $state->cache());
         }
         if ($this->historyConfig()->store !== null) {
             $builder->submissionStore(fn(Services $s): SubmissionStoreInterface => $this->submissionStore($s->config));
@@ -326,8 +330,23 @@ final class Wiring
             VerifyServices::installedCheck($verify),
             VerifyServices::transportCheck($verify, $services->config),
             SampleGateCheck::withPackage($this->samples, VerifyServices::sampleCheck($this->verifyTransport(), $verify, $services->normalizer(), $services->keys(), null, $this->robots())),
-            ...HistoryServices::checksFor($this->historyConfig(), $services),
+            ...$this->historyChecks($services),
         ];
+    }
+
+    /**
+     * The history lines, or one error line when the store cannot be opened (a state file that cannot be written): the
+     * report keeps every other line instead of stopping at the first store the check builds.
+     *
+     * @return list<CheckInterface>
+     */
+    private function historyChecks(Services $services): array
+    {
+        try {
+            return HistoryServices::checksFor($this->historyConfig(), $services);
+        } catch (ConfigurationException $e) {
+            return [new StaticCheck(CheckLevel::Error, 'history: ' . $e->getMessage(), HistoryCheck::CODE_STORE)];
+        }
     }
 
     /** `symfony/http-client` with a timeout and no redirects (the key file check and the pre-flight must see a 3xx). */

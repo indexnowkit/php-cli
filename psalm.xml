@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!--
+    Psalm runs the taint analysis of this package only (bin/taint cli, .github/workflows/taint.yml); phpstan level 9 is the
+    type checker. src plus the entry-point harness tests/Taint/entrypoints.php, which calls the public API with request
+    data. Psalm is a tool of the monorepo (tools/psalm), not a dev dependency.
+-->
+<psalm
+    errorLevel="4"
+    resolveFromConfigFile="true"
+    findUnusedBaselineEntry="false"
+    findUnusedCode="false"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config ../../tools/psalm/vendor/vimeo/psalm/config.xsd"
+>
+    <projectFiles>
+        <directory name="src" />
+        <file name="tests/Taint/entrypoints.php" />
+        <ignoreFiles>
+            <directory name="vendor" />
+        </ignoreFiles>
+    </projectFiles>
+    <issueHandlers>
+        <!-- The paths the operator names on the command line are the feature: `key:file <docroot>` writes the key files
+             into the directory given (and nowhere else: a key_location path with `..` is refused), the env file and the
+             config file are read, the state option / INDEXNOW_STATE is the sqlite file the run keeps its state in. -->
+        <TaintedFile>
+            <errorLevel type="suppress">
+                <file name="src/KeyFileRunner.php"/>
+                <file name="src/Env/Dotenv.php"/>
+                <file name="src/Config/EnvConfigSource.php"/>
+                <file name="src/State/State.php"/>
+            </errorLevel>
+        </TaintedFile>
+    </issueHandlers>
+</psalm>

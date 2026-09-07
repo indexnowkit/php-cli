@@ -1,0 +1,3 @@
+# Keep the Packagist dist archive small: no tests, CI or tooling configuration.
+/infection.json5      export-ignore
+/psalm.xml            export-ignore

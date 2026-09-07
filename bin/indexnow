@@ -1,0 +1,32 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// The `indexnow` binary: Composer (vendor/bin/indexnow, composer global require), the PHAR (Box builds it from this
+// file) and the Docker image run this. The autoloader is looked up where Composer puts it: the package's own vendor
+// (a checkout, the PHAR), the application's vendor when the package is a dependency (two levels up), and the
+// global vendor of `composer global require` (three levels up).
+
+use Http\Discovery\ClassDiscovery;
+use IndexNowKit\Cli\Application;
+
+foreach ([__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../../autoload.php', __DIR__ . '/../../../../autoload.php'] as $autoload) {
+    if (is_file($autoload)) {
+        require $autoload;
+        break;
+    }
+}
+if (!class_exists(Application::class)) {
+    fwrite(STDERR, "indexnow: the Composer autoloader was not found; run composer install, or use the PHAR.\n");
+    exit(1);
+}
+
+// Nothing in this binary discovers an HTTP client or PSR-17 factories: the client and the factories are required and
+// passed explicitly (Wiring). With no strategy left, a hidden call to php-http/discovery fails loudly — in the PHAR,
+// where the classmap decides what exists, and in the tests.
+if (class_exists(ClassDiscovery::class)) {
+    ClassDiscovery::setStrategies([]);
+}
+
+exit((new Application())->run());

@@ -1,0 +1,97 @@
+{
+    "name": "indexnowkit/cli",
+    "description": "The indexnow command line: submit URLs and sitemaps to IndexNow (Yandex, Bing, Naver, Seznam) from any host with PHP or any CI — no framework; check, key:file, sitemap --new-only, history and status over INDEXNOW_* variables and a sqlite state file. Also a PHAR, a Docker image and a GitHub Action",
+    "type": "library",
+    "license": "MIT",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "keywords": [
+        "indexnow",
+        "cli",
+        "seo",
+        "sitemap",
+        "yandex",
+        "bing",
+        "indexing",
+        "bitrix",
+        "wordpress",
+        "cron"
+    ],
+    "homepage": "https://indexnowkit.github.io/php/cli/",
+    "authors": [
+        {
+            "name": "Igor Pinchuk",
+            "email": "i.pinchuk.work@gmail.com"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/indexnowkit/php/issues",
+        "source": "https://github.com/indexnowkit/php-cli",
+        "docs": "https://github.com/indexnowkit/php-cli/blob/main/README.md",
+        "security": "https://github.com/indexnowkit/php-cli/blob/main/SECURITY.md"
+    },
+    "bin": [
+        "bin/indexnow"
+    ],
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "ext-pdo": "*",
+        "ext-pdo_sqlite": "*",
+        "ext-xmlreader": "*",
+        "indexnowkit/console": "^0.5",
+        "indexnowkit/core": "^0.13.1",
+        "indexnowkit/history": "^0.4",
+        "indexnowkit/sitemap": "^0.9",
+        "indexnowkit/verify": "^0.4",
+        "nyholm/psr7": "^1.8",
+        "psr/clock": "^1.0",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.0",
+        "psr/log": "^2.0 || ^3.0",
+        "psr/simple-cache": "^1.0 || ^2.0 || ^3.0",
+        "symfony/console": "^6.4 || ^7.0 || ^8.0",
+        "symfony/dotenv": "^6.4 || ^7.0 || ^8.0",
+        "symfony/http-client": "^6.4 || ^7.0 || ^8.0"
+    },
+    "require-dev": {
+        "indexnowkit/testing": "^0.3",
+        "justinrainbow/json-schema": "^6.0",
+        "phpstan/phpstan": "^2.2.13",
+        "phpstan/phpstan-phpunit": "^2.0.18",
+        "phpstan/phpstan-strict-rules": "^2.0.12",
+        "phpunit/phpunit": "^11.5 || ^12.0 || ^13.0",
+        "roave/security-advisories": "dev-latest"
+    },
+    "suggest": {
+        "ext-intl": "Punycode of international host names through ICU (the core has a pure PHP fallback)",
+        "ext-zlib": "Reading gzip-compressed sitemaps"
+    },
+    "autoload": {
+        "psr-4": {
+            "IndexNowKit\\Cli\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "IndexNowKit\\Cli\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "stan": "phpstan analyse --memory-limit=1G",
+        "ci:install:highest": "@composer update --no-interaction --prefer-dist",
+        "ci:install:lowest": "@composer update --no-interaction --prefer-dist --prefer-lowest --prefer-stable"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": false
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        }
+    }
+}

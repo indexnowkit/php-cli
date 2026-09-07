@@ -1,0 +1,150 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * The entrypoint of the GitHub Action indexnowkit/indexnow-action, inside the image ghcr.io/indexnowkit/indexnow
+ * (<version>-action). GitHub hands the inputs of action.yml in as INPUT_<NAME> (upper-cased, the dashes kept:
+ * INPUT_BASE-URL, INPUT_DRY-RUN — docs.github.com, "Metadata syntax", inputs), which is why this is PHP and not sh.
+ * It puts them into INDEXNOW_* variables, runs `indexnow check --json` (the configuration and the key file: the key
+ * file must be reachable on the live site before anything is announced), then `indexnow sitemap --json` or
+ * `indexnow submit --json`, writes the outputs (submitted, skipped, failed, summary-json) and the step summary.
+ * Nothing here is a second implementation: every decision is the CLI's.
+ */
+
+/** The value of an input, empty string when unset. */
+function input(string $name): string
+{
+    $value = getenv('INPUT_' . strtoupper($name));
+
+    return \is_string($value) ? trim($value) : '';
+}
+
+function isTrue(string $value): bool
+{
+    return \in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+}
+
+/** Runs the CLI, returns [exit code, stdout, stderr]. */
+function indexnow(array $arguments, array $env): array
+{
+    $command = array_merge(['/usr/local/bin/indexnow'], $arguments);
+    $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env + getenv());
+    if (!\is_resource($process)) {
+        fwrite(STDERR, "indexnow-action: cannot start indexnow\n");
+        exit(1);
+    }
+    $stdout = (string) stream_get_contents($pipes[1]);
+    $stderr = (string) stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    return [proc_close($process), $stdout, $stderr];
+}
+
+function output(string $name, string $value): void
+{
+    $file = getenv('GITHUB_OUTPUT');
+    if (\is_string($file) && $file !== '') {
+        file_put_contents($file, $name . '=' . str_replace(["\r", "\n"], ' ', $value) . "\n", FILE_APPEND);
+    }
+}
+
+function summary(string $markdown): void
+{
+    $file = getenv('GITHUB_STEP_SUMMARY');
+    if (\is_string($file) && $file !== '') {
+        file_put_contents($file, $markdown . "\n", FILE_APPEND);
+    }
+}
+
+$key = input('key');
+$baseUrl = input('base-url');
+if ($key === '' || $baseUrl === '') {
+    fwrite(STDERR, "::error::indexnow-action: the inputs `key` and `base-url` are required\n");
+    exit(1);
+}
+$workspace = getenv('GITHUB_WORKSPACE');
+$workspace = \is_string($workspace) && $workspace !== '' ? $workspace : getcwd();
+$statePath = input('state-path') !== '' ? input('state-path') : '.indexnow';
+$env = [
+    'INDEXNOW_KEY' => $key,
+    'INDEXNOW_BASE_URL' => $baseUrl,
+    'INDEXNOW_ENV' => 'prod',
+    'INDEXNOW_STATE' => str_starts_with($statePath, '/') ? $statePath . '/state.sqlite' : $workspace . '/' . $statePath . '/state.sqlite',
+];
+if (input('key-location') !== '') {
+    $env['INDEXNOW_KEY_LOCATION'] = input('key-location');
+}
+if (input('engines') !== '') {
+    $env['INDEXNOW_ENGINES'] = input('engines');
+}
+if (isTrue(input('verify'))) {
+    $env['INDEXNOW_VERIFY_ENABLED'] = 'true';
+}
+$failOnError = input('fail-on-error') === '' || isTrue(input('fail-on-error'));
+$fail = static function (string $message) use ($failOnError): never {
+    fwrite(STDERR, ($failOnError ? '::error::' : '::notice::') . $message . "\n");
+    exit($failOnError ? 1 : 0);
+};
+
+// 1. the configuration and the key file of the live site
+[$code, $stdout] = indexnow(['check', '--json', '--no-env-file'], $env);
+$report = json_decode($stdout, true);
+if (!\is_array($report)) {
+    $fail('indexnow check printed no report: ' . trim($stdout));
+}
+$lines = array_map(static fn(array $item): string => '- ' . $item['level'] . ': ' . $item['message'], $report['items'] ?? []);
+if ($code !== 0) {
+    summary("## IndexNow: not ready\n\n" . implode("\n", $lines));
+    $fail('indexnow check failed (the key file must be served by the site before anything is announced): ' . implode(' | ', array_map(static fn(array $i): string => $i['message'], array_filter($report['items'] ?? [], static fn(array $i): bool => $i['level'] === 'error'))));
+}
+
+// 2. the submission: a list of URLs, else the sitemap
+$urls = array_values(array_filter(array_map('trim', preg_split('/\R/', input('urls')) ?: [])));
+$dryRun = isTrue(input('dry-run')) ? ['--dry-run'] : []; // the flag of the command, not INDEXNOW_DRY_RUN: check would call a dry run in production an error
+if ($urls !== []) {
+    $arguments = ['submit', '--json', '--no-env-file', ...$dryRun, ...$urls];
+} else {
+    $sitemap = input('sitemap');
+    $arguments = ['sitemap', '--json', '--no-env-file', ...$dryRun];
+    if ($sitemap !== '') {
+        $arguments[] = preg_match('#^https?://#', $sitemap) === 1 || str_starts_with($sitemap, '/') ? $sitemap : $workspace . '/' . $sitemap;
+    }
+    if (input('changed-since') !== '') {
+        array_push($arguments, '--changed-since', input('changed-since'));
+    }
+    if (isTrue(input('new-only'))) {
+        $arguments[] = '--new-only';
+    }
+}
+[$code, $stdout, $stderr] = indexnow($arguments, $env);
+$rows = json_decode($stdout, true);
+$rows = \is_array($rows) ? $rows : [];
+$counts = ['submitted' => 0, 'skipped' => 0, 'failed' => 0];
+$table = ["| engine | host | urls | status | http | reason |", "|---|---|---|---|---|---|"];
+foreach ($rows as $row) {
+    if (\is_string($row)) {
+        ++$counts['skipped']; // `sitemap --dry-run --json` lists the URLs it would submit
+        continue;
+    }
+    if (!\is_array($row)) {
+        continue;
+    }
+    $count = \is_array($row['urls'] ?? null) ? \count($row['urls']) : (int) ($row['url_count'] ?? 0);
+    $status = (string) ($row['status'] ?? '');
+    $counts[$status === 'ok' || $status === 'pending' ? 'submitted' : ($status === 'failed' ? 'failed' : 'skipped')] += $count;
+    $table[] = \sprintf('| %s | %s | %d | %s | %s | %s |', $row['engine'] ?? '', $row['host'] ?? '', $count, $status, $row['http'] ?? '', $row['reason'] ?? '');
+}
+$summaryFile = $workspace . '/' . $statePath . '/summary.json';
+@mkdir(\dirname($summaryFile), 0o755, true);
+file_put_contents($summaryFile, json_encode(['check' => $report, 'results' => $rows], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+foreach ($counts as $name => $value) {
+    output($name, (string) $value);
+}
+output('summary-json', $summaryFile);
+summary(\sprintf("## IndexNow: %d submitted, %d skipped, %d failed\n\n%s\n\n<details><summary>check</summary>\n\n%s\n\n</details>", $counts['submitted'], $counts['skipped'], $counts['failed'], implode("\n", $table), implode("\n", $lines)));
+if ($code !== 0) {
+    $fail('indexnow ' . $arguments[0] . ' exited with ' . $code . ': ' . trim($stderr));
+}

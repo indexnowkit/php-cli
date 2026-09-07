@@ -1,0 +1,64 @@
+# The GitHub Action indexnowkit/indexnow-action: `indexnow check` then `indexnow sitemap` (or `submit`) of the image
+# ghcr.io/indexnowkit/indexnow, on deploy. The source lives in packages/cli/action of https://github.com/indexnowkit/php
+# and is mirrored into https://github.com/indexnowkit/indexnow-action (the Marketplace wants action.yml at the root).
+# The image tag is the version of the CLI the action was released with: bumping it is part of a CLI release.
+name: 'IndexNow submit (indexnowkit)'
+description: 'Tell Yandex, Bing, Naver and Seznam which URLs changed: check the key file, then submit a sitemap (only what is new or changed) or a list of URLs — every IndexNow engine in one run, with a state file between runs'
+author: 'indexnowkit'
+branding:
+  icon: 'send'
+  color: 'blue'
+inputs:
+  key:
+    description: 'The IndexNow key (a secret); the key file <base-url>/<key>.txt must be served by the site'
+    required: true
+  base-url:
+    description: 'The site: https://www.example.com (the host of the key file and of every URL)'
+    required: true
+  key-location:
+    description: 'The URL of the key file when it is not <base-url>/<key>.txt'
+    required: false
+  engines:
+    description: 'Comma-separated: api (the shared endpoint, every engine) or yandex,bing,…; default api'
+    required: false
+  sitemap:
+    description: 'The sitemap: a URL, or a file in the checkout (dist/sitemap.xml); default <base-url>/sitemap.xml'
+    required: false
+  urls:
+    description: 'URLs to submit, one per line; when given, the sitemap is not read'
+    required: false
+  changed-since:
+    description: 'Only sitemap entries with lastmod after this: "1 day", "2026-09-01"'
+    required: false
+  new-only:
+    description: 'true: only the URLs that are new or changed since the last run (needs state-path restored by actions/cache)'
+    required: false
+    default: 'false'
+  state-path:
+    description: 'The directory of the state file (debounce window, seen URLs, history), relative to the workspace; cache it between runs'
+    required: false
+    default: '.indexnow'
+  verify:
+    description: 'true: fetch every URL before submitting it (noindex, canonical, redirects, robots.txt are skipped)'
+    required: false
+    default: 'false'
+  dry-run:
+    description: 'true: report what would be submitted, send nothing'
+    required: false
+    default: 'false'
+  fail-on-error:
+    description: 'false: a failed check or submission is a notice, not a failed step'
+    required: false
+    default: 'true'
+outputs:
+  submitted:
+    description: 'URLs the engines accepted (200 or 202)'
+  skipped:
+    description: 'URLs not sent: debounced, dry run, skipped by the pre-flight'
+  failed:
+    description: 'URLs the engines refused or that could not be sent'
+  summary-json:
+    description: 'The path of a JSON file with the check report and the results'
+runs:
+  using: 'docker'
+  image: 'docker://ghcr.io/indexnowkit/indexnow:0.1.0-action'

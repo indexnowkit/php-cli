@@ -1,0 +1,14 @@
+{
+    "$schema": "https://raw.githubusercontent.com/box-project/box/main/res/schema.json",
+    "main": "bin/indexnow",
+    "output": "indexnow.phar",
+    "directories": ["bin", "src", "vendor"],
+    "files": ["composer.json"],
+    "blacklist": ["tests", "docs", "README.md", "README.ru.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md"],
+    "exclude-dev-files": true,
+    "compactors": ["KevinGH\\Box\\Compactor\\Php", "KevinGH\\Box\\Compactor\\Json"],
+    "compression": "GZ",
+    "git-version": "git-version",
+    "dump-autoload": true,
+    "check-requirements": true
+}

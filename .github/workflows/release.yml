@@ -1,0 +1,98 @@
+# The release of the split repository indexnowkit/php-cli, on the tag the split workflow of the monorepo pushes
+# (cli@0.1.0 there is 0.1.0 here): the PHAR with Box, attached to the GitHub release (created by bin/release-notes of
+# the monorepo; when it is not there within ten minutes, created here with a pointer to the changelog — bin/release-notes
+# then replaces the notes), and the Docker image ghcr.io/indexnowkit/indexnow (the `cli` target as <version>,
+# <major.minor> and latest; the `action` target as <version>-action, what action.yml of indexnowkit/indexnow-action pins).
+# The first push creates the GHCR package private: making it public is a one-time step in the settings of the
+# organization's package (spec 19b §3.7).
+name: Release
+
+on:
+  push:
+    tags: ['[0-9]*.[0-9]*.[0-9]*']
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  phar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, xmlreader, zlib, mbstring
+          coverage: none
+          ini-values: phar.readonly=0
+      - name: Install the package without dev dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --classmap-authoritative
+      - name: Install Box
+        run: composer global require humbug/box:^4.7 --no-interaction
+      - name: Compile the PHAR
+        run: |
+          "$(composer global config bin-dir --absolute --quiet)/box" compile --no-interaction
+          php indexnow.phar --version
+          php indexnow.phar list --raw
+          sha256sum indexnow.phar > indexnow.phar.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phar
+          path: |
+            indexnow.phar
+            indexnow.phar.sha256
+      - name: Attach the PHAR to the release (waits for bin/release-notes of the monorepo up to ten minutes)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 40); do
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+            sleep 15
+          done
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" -t "$GITHUB_REF_NAME" -n "See CHANGELOG.md for $GITHUB_REF_NAME."
+          gh release upload "$GITHUB_REF_NAME" indexnow.phar indexnow.phar.sha256 --clobber
+
+  docker:
+    needs: phar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: phar
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tags of the cli image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/indexnowkit/indexnow
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - name: Build and push the cli image (linux/amd64, linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: cli
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push the action image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: action
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/indexnowkit/indexnow:${{ github.ref_name }}-action
+          labels: ${{ steps.meta.outputs.labels }}

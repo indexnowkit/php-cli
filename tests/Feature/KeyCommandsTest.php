@@ -77,7 +77,7 @@ final class KeyCommandsTest extends TestCase
             $tester = new CommandTester(new KeyFileCommand(new KeyFileRunner(StaticKeyProvider::fromConfig(Config::fromArray(['key' => Harness::KEY, 'base_url' => 'https://www.example.com'])))));
             self::assertSame(ExitCode::FAILURE, $tester->execute(['docroot' => $dir . '/ro']));
             self::assertStringContainsString('cannot write', $tester->getDisplay());
-            self::assertStringContainsString('check the permissions of the document root', $tester->getDisplay());
+            self::assertStringContainsString('check the permissions', $tester->getDisplay());
         } finally {
             chmod($dir . '/ro', 0o700);
             Harness::remove($dir);

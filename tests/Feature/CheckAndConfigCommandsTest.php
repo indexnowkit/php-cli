@@ -85,7 +85,7 @@ final class CheckAndConfigCommandsTest extends TestCase
 
         if (posix_geteuid() !== 0) {
             mkdir($harness->dir . '/ro', 0o500);
-            self::assertSame(ExitCode::SUCCESS, $harness->run(['command' => 'check', '--state' => $harness->dir . '/ro/s.sqlite']));
+            self::assertSame(ExitCode::FAILURE, $harness->run(['command' => 'check', '--state' => $harness->dir . '/ro/s.sqlite']), 'the debounce store that cannot be written is an error');
             self::assertStringContainsString('! state: ' . $harness->dir . '/ro/s.sqlite (not created yet, the directory is not writable)', $harness->display());
             self::assertStringContainsString('debounce: store "state" is not usable', $harness->display());
             chmod($harness->dir . '/ro', 0o700);

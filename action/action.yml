@@ -3,7 +3,7 @@
 # and is mirrored into https://github.com/indexnowkit/indexnow-action (the Marketplace wants action.yml at the root).
 # The image tag is the version of the CLI the action was released with: bumping it is part of a CLI release.
 name: 'IndexNow submit (indexnowkit)'
-description: 'Tell Yandex, Bing, Naver and Seznam which URLs changed: check the key file, then submit a sitemap (only what is new or changed) or a list of URLs — every IndexNow engine in one run, with a state file between runs'
+description: 'Check the IndexNow key file, then submit a sitemap (only what changed) or a list of URLs to every IndexNow engine in one run'
 author: 'indexnowkit'
 branding:
   icon: 'send'

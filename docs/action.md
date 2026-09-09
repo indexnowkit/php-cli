@@ -4,7 +4,7 @@ A Docker action over `ghcr.io/indexnowkit/indexnow:<version>-action`: `indexnow 
 the key file of the **live** site — nothing is announced before the engines can verify the key), then
 `indexnow sitemap --json` (or `submit --json` when `urls` is given), the outputs and a step summary. The source is
 [`action/`](https://github.com/indexnowkit/php/tree/main/packages/cli/action) of this package, mirrored into the repository `indexnowkit/indexnow-action`
-(`action.yml` at its root, as the Marketplace wants); `v1` moves within the major, `v1.0.0` is pinned.
+(`action.yml` at its root, as the Marketplace wants); `v1` moves within the major, `v1.0.1` is pinned.
 
 ```yaml
 name: IndexNow

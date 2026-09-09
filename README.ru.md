@@ -53,6 +53,27 @@ CLI нужны две вещи, которые есть у любого сайт
 `INDEXNOW_SITEMAP_URL`, когда он не `<base_url>/sitemap.xml`; или файл с диска: `indexnow sitemap /var/www/site/public/sitemap.xml`.
 PHP самой CMS не запускается: CLI — отдельный процесс на том же хосте.
 
+### Битрикс по шагам
+
+На BitrixVM сайт лежит в `/home/bitrix/www` (остальные сайты многосайтовости — в `/home/bitrix/ext_www/<site>`), а модуль
+«Поисковая оптимизация» пишет `sitemap.xml` прямо в этот document root (Маркетинг → Поисковая оптимизация → Настройка
+sitemap.xml; перегенерация там же или агентом). CLI нужен PHP 8.2+ в консоли — тот, что выбран в меню VM.
+
+```bash
+mkdir -p /home/bitrix/indexnow && cd /home/bitrix/indexnow    # вне document root: здесь .env и файл состояния
+indexnow key:generate --write-env
+echo 'INDEXNOW_BASE_URL=https://www.example.com' >> .env
+indexnow key:file /home/bitrix/www                            # /home/bitrix/www/<key>.txt, по файлу на каждый хост
+indexnow check --live
+```
+
+```cron
+*/30 * * * *  cd /home/bitrix/indexnow && indexnow sitemap /home/bitrix/www/sitemap.xml --new-only --json >> /var/log/indexnow.log 2>&1
+```
+
+Sitemap читается с диска, веб-сервер и кеш ни при чём; уходят только URL, которых файл состояния не видел с этим
+`<lastmod>`. В Битрикс ничего не ставится — ни модуля, ни агента: CLI — процесс пользователя `bitrix` рядом с сайтом.
+
 ## Статика: на деплое
 
 GitHub Action `indexnowkit/indexnow-action` запускает `check`, затем `sitemap --new-only` из образа; файл состояния

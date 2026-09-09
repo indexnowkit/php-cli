@@ -63,6 +63,29 @@ The CLI needs two things every site has: the document root (for `key:file`) and 
 `<base_url>/sitemap.xml`, or give the file: `indexnow sitemap /var/www/site/public/sitemap.xml` reads it from disk.
 No PHP of the CMS runs; the CLI is a separate process on the same host.
 
+### Bitrix, step by step
+
+On a BitrixVM the site lives in `/home/bitrix/www` (the other sites of a multi-site setup in `/home/bitrix/ext_www/<site>`)
+and the "Search engine optimization" module writes `sitemap.xml` right into that document root (Marketing → Search engine
+optimization → sitemap.xml settings; regenerate it there or by its agent). The CLI needs PHP 8.2+ on the command line —
+the PHP the VM menu selected.
+
+```bash
+mkdir -p /home/bitrix/indexnow && cd /home/bitrix/indexnow    # outside the document root: the .env and the state file
+indexnow key:generate --write-env
+echo 'INDEXNOW_BASE_URL=https://www.example.com' >> .env
+indexnow key:file /home/bitrix/www                            # /home/bitrix/www/<key>.txt, one file per configured host
+indexnow check --live
+```
+
+```cron
+*/30 * * * *  cd /home/bitrix/indexnow && indexnow sitemap /home/bitrix/www/sitemap.xml --new-only --json >> /var/log/indexnow.log 2>&1
+```
+
+The sitemap is read from disk, so nothing depends on the web server or on caching; only URLs the state file has not seen
+with this `<lastmod>` go out. Nothing is installed into Bitrix, no module, no agent: the CLI is a process of the `bitrix`
+user next to the site.
+
 ## Static sites: on deploy
 
 The GitHub Action `indexnowkit/indexnow-action` runs `check` and then `sitemap --new-only` from the image; the state

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Cli\Tests\Unit;
 
+use Composer\InstalledVersions;
 use IndexNowKit\Cli\Config\EnvBlocks;
 use IndexNowKit\Cli\Config\EnvConfigSource;
 use IndexNowKit\Cli\Tests\Support\Harness;
@@ -36,7 +37,7 @@ final class EnvConfigSourceTest extends TestCase
             $value = $name === 'HOSTS' ? 'a.test=abcdefgh' : '1';
             self::assertNotSame([], Config::arrayFromEnv([EnvBlocks::PREFIX . $name => $value]), $name . ' is not read by Config::arrayFromEnv(): drop it from CORE_VARIABLES');
         }
-        $doc = (string) file_get_contents(\dirname(__DIR__, 3) . '/core/src/Config.php');
+        $doc = (string) file_get_contents((string) InstalledVersions::getInstallPath('indexnowkit/core') . '/src/Config.php');
         preg_match_all('/INDEXNOW_([A-Z_]+)/', $doc, $found);
         foreach (array_unique($found[1]) as $name) {
             self::assertContains($name, EnvConfigSource::CORE_VARIABLES, 'the core documents INDEXNOW_' . $name . ', CORE_VARIABLES does not know it');

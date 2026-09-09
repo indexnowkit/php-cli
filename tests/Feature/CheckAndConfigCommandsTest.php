@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace IndexNowKit\Cli\Tests\Feature;
 
+use Composer\InstalledVersions;
 use IndexNowKit\Cli\Tests\Support\Harness;
 use IndexNowKit\Console\ExitCode;
 use IndexNowKit\Http\Response;
@@ -21,7 +22,7 @@ final class CheckAndConfigCommandsTest extends TestCase
         self::assertSame(ExitCode::SUCCESS, $harness->run(['command' => 'check', '--json' => true]), $harness->display());
         $document = json_decode($harness->display());
         $validator = new Validator();
-        $validator->validate($document, json_decode((string) file_get_contents(\dirname(__DIR__, 3) . '/console/docs/check.schema.json')));
+        $validator->validate($document, json_decode((string) file_get_contents((string) InstalledVersions::getInstallPath('indexnowkit/console') . '/docs/check.schema.json')));
         self::assertTrue($validator->isValid(), json_encode($validator->getErrors()));
         $report = json_decode($harness->display(), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($report);

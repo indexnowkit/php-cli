@@ -4,7 +4,7 @@ A Docker action over `ghcr.io/indexnowkit/indexnow:<version>-action`: `indexnow 
 the key file of the **live** site — nothing is announced before the engines can verify the key), then
 `indexnow sitemap --json` (or `submit --json` when `urls` is given), the outputs and a step summary. The source is
 [`action/`](https://github.com/indexnowkit/php/tree/main/packages/cli/action) of this package, mirrored into the repository `indexnowkit/indexnow-action`
-(`action.yml` at its root, as the Marketplace wants); `v1` moves within the major, `v1.0.1` is pinned.
+(`action.yml` at its root, as the Marketplace wants); `v1` moves within the major, `v1.0.2` is pinned.
 
 ```yaml
 name: IndexNow
@@ -35,13 +35,17 @@ jobs:
 | `urls` | | one URL per line; then `submit` runs instead of `sitemap` |
 | `changed-since` | | only entries with `lastmod` after this (`1 day`, `2026-09-01`) |
 | `new-only` | `false` | only what the state file has not seen with this `lastmod`; needs the cache above |
-| `state-path` | `.indexnow` | the directory of the state file, relative to the workspace |
+| `state-path` | `.indexnow` | the directory of the state file and of `summary.json`, relative to the workspace unless it is absolute |
 | `verify` | `false` | fetch every URL before submitting it (noindex, canonical, redirects, robots.txt are skipped) |
 | `dry-run` | `false` | report what would be submitted, send nothing |
 | `fail-on-error` | `true` | `false`: a failed check or submission is a notice, the step stays green |
 
 Outputs: `submitted`, `skipped`, `failed` (URL counts), `summary-json` (a file with the check report and the results).
 The step summary shows the result table and the check lines.
+
+The step hands that directory to the owner of the workspace before it exits: a Docker action runs as root and the
+state directory is `0700`, so without it `actions/cache` cannot read what it is supposed to save — the job ends with
+`EACCES: permission denied, scandir '.indexnow'` and `new-only` starts from nothing on the next run.
 
 What sets it apart from the other IndexNow actions: every engine in one run (or a list), the key file checked before
 anything is sent, `new-only` over a state file instead of a `lastmod` window (a sitemap without `lastmod` still gets

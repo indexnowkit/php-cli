@@ -25,7 +25,7 @@ the last run — or a list of URLs. Google does not participate in IndexNow.
 | `urls` | | one URL per line: submit these instead of a sitemap |
 | `changed-since` | | only entries with `lastmod` after this (`1 day`, `2026-09-01`) |
 | `new-only` | `false` | only what was not announced with this `lastmod` before (cache `.indexnow` between runs) |
-| `state-path` | `.indexnow` | the directory of the state file |
+| `state-path` | `.indexnow` | the directory of the state file and of `summary.json`; the step hands it to the workspace's owner when it is done, so `actions/cache` can save it |
 | `verify` | `false` | fetch every URL before submitting it: noindex, redirects, non-canonical pages and robots.txt blocks are skipped |
 | `dry-run` | `false` | report, send nothing |
 | `fail-on-error` | `true` | `false`: problems are a notice, the step stays green |

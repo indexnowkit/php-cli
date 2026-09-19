@@ -59,6 +59,41 @@ function summary(string $markdown): void
     }
 }
 
+/**
+ * Gives the state directory back to the user the workspace belongs to.
+ *
+ * A Docker action runs as root — GitHub requires it, so that the step can write the workspace — and the state
+ * directory the CLI creates is `0700` on purpose. Everything after the step runs as the runner's user, which then
+ * cannot even list it: `actions/cache`, the one thing that makes `new-only` work across runs, ends the job with
+ * `EACCES: permission denied, scandir '.indexnow'`, nothing is saved, and the next run announces the whole sitemap
+ * again. The mode stays what it is; the owner is what changes.
+ */
+function handStateToWorkspaceOwner(string $stateDir, string $workspace): void
+{
+    if (getenv('GITHUB_ACTIONS') !== 'true' || !is_dir($stateDir)) {
+        return;
+    }
+    $owner = @fileowner($workspace);
+    $group = @filegroup($workspace);
+    if ($owner === false || $owner === @fileowner($stateDir)) {
+        return;
+    }
+    $paths = [$stateDir];
+    /** @var SplFileInfo $item */
+    foreach (new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($stateDir, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST,
+    ) as $item) {
+        $paths[] = $item->getPathname();
+    }
+    foreach ($paths as $path) {
+        @chown($path, $owner);
+        if ($group !== false) {
+            @chgrp($path, $group);
+        }
+    }
+}
+
 $key = input('key');
 $baseUrl = input('base-url');
 if ($key === '' || $baseUrl === '') {
@@ -68,11 +103,15 @@ if ($key === '' || $baseUrl === '') {
 $workspace = getenv('GITHUB_WORKSPACE');
 $workspace = \is_string($workspace) && $workspace !== '' ? $workspace : getcwd();
 $statePath = input('state-path') !== '' ? input('state-path') : '.indexnow';
+// One directory for the state file and the report: `state-path` is relative to the workspace, and absolute when it
+// names a place of its own.
+$stateDir = str_starts_with($statePath, '/') ? $statePath : $workspace . '/' . $statePath;
+register_shutdown_function(static fn() => handStateToWorkspaceOwner($stateDir, $workspace));
 $env = [
     'INDEXNOW_KEY' => $key,
     'INDEXNOW_BASE_URL' => $baseUrl,
     'INDEXNOW_ENV' => 'prod',
-    'INDEXNOW_STATE' => str_starts_with($statePath, '/') ? $statePath . '/state.sqlite' : $workspace . '/' . $statePath . '/state.sqlite',
+    'INDEXNOW_STATE' => $stateDir . '/state.sqlite',
 ];
 if (input('key-location') !== '') {
     $env['INDEXNOW_KEY_LOCATION'] = input('key-location');
@@ -137,7 +176,7 @@ foreach ($rows as $row) {
     $counts[$status === 'ok' || $status === 'pending' ? 'submitted' : ($status === 'failed' ? 'failed' : 'skipped')] += $count;
     $table[] = \sprintf('| %s | %s | %d | %s | %s | %s |', $row['engine'] ?? '', $row['host'] ?? '', $count, $status, $row['http'] ?? '', $row['reason'] ?? '');
 }
-$summaryFile = $workspace . '/' . $statePath . '/summary.json';
+$summaryFile = $stateDir . '/summary.json';
 @mkdir(\dirname($summaryFile), 0o755, true);
 file_put_contents($summaryFile, json_encode(['check' => $report, 'results' => $rows], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 foreach ($counts as $name => $value) {

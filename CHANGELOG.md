@@ -3,6 +3,20 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: SemVer; until 1.0 minor versions may
 contain breaking changes, listed under "Changed". What the compatibility promise covers: [docs/bc.md](docs/bc.md).
 
+## [0.1.1] — 2026-09-20
+
+### Fixed
+
+- **The GitHub Action leaves its state where the job can cache it.** A Docker action runs as root, and the state
+  directory is `0700` on purpose, so everything after the step — `actions/cache` above all, the one thing that makes
+  `--new-only` work across runs — could not even list it: the job ended with `EACCES: permission denied, scandir
+  '.indexnow'`, nothing was saved, and the next run announced the whole sitemap again. The entrypoint now hands the
+  directory to the owner of `GITHUB_WORKSPACE` when it is done (the mode is unchanged; only under `GITHUB_ACTIONS`).
+- **An absolute `state-path` keeps its report.** `summary.json` was written to `<workspace>/<state-path>/summary.json`
+  whatever `state-path` was, so an absolute one — `/var/cache/indexnow` — put the report in a directory of that shape
+  under the workspace (`<workspace>/var/cache/indexnow/summary.json`) while the state file went where it was asked.
+  Both now sit in the one directory.
+
 ## [0.1.0] — 2026-09-08
 
 ### Added

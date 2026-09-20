@@ -61,4 +61,4 @@ outputs:
     description: 'The path of a JSON file with the check report and the results'
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/indexnowkit/indexnow:0.1.0-action'
+  image: 'docker://ghcr.io/indexnowkit/indexnow:0.1.1-action'
